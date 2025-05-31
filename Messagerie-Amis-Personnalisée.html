@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChatHub Community - Messagerie</title>
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css">
+<style>
+:where([class^="ri-"])::before { content: "\f3c2"; }
+body {
+font-family: 'Inter', sans-serif;
+background-color: #000000;
+color: #ffffff;
+}
+.message-sent {
+background-color: #FF6600;
+color: #ffffff;
+border-radius: 16px 16px 0 16px;
+}
+.message-received {
+background-color: #222222;
+color: #ffffff;
+border-radius: 16px 16px 16px 0;
+}
+.scrollbar-hide::-webkit-scrollbar {
+display: none;
+}
+.scrollbar-hide {
+-ms-overflow-style: none;
+scrollbar-width: none;
+}
+.chat-input:focus {
+outline: none;
+border-color: #FF6600;
+}
+.contact-hover:hover {
+background-color: rgba(255, 102, 0, 0.1);
+}
+.status-dot {
+width: 10px;
+height: 10px;
+border-radius: 50%;
+}
+.status-online {
+background-color: #FF6600;
+}
+.status-offline {
+background-color: #666666;
+}
+</style>
+<script>tailwind.config={theme:{extend:{colors:{primary:'#FF6600',secondary:'#222222'},borderRadius:{'none':'0px','sm':'4px',DEFAULT:'8px','md':'12px','lg':'16px','xl':'20px','2xl':'24px','3xl':'32px','full':'9999px','button':'8px'}}}}</script>
+</head>
+<body class="min-h-screen flex flex-col">
+<!-- Login Modal -->
+<div id="loginModal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+<div class="bg-black border border-primary/30 rounded-lg p-8 w-full max-w-md">
+<div class="flex justify-between items-center mb-6">
+<h2 class="text-2xl font-bold text-white">Connexion</h2>
+<button id="switchToRegister" class="text-primary hover:text-primary/80">Créer un compte</button>
+</div>
+<form id="loginForm" class="space-y-4">
+<div>
+<label class="block text-sm font-medium text-gray-300 mb-1">Email</label>
+<input type="email" name="email" required class="w-full bg-secondary rounded-lg px-4 py-2 text-white border-none focus:ring-2 focus:ring-primary">
+</div>
+<div>
+<label class="block text-sm font-medium text-gray-300 mb-1">Mot de passe</label>
+<input type="password" name="password" required class="w-full bg-secondary rounded-lg px-4 py-2 text-white border-none focus:ring-2 focus:ring-primary">
+</div>
+<button type="submit" class="w-full bg-primary text-black py-2 rounded-button font-medium hover:bg-primary/90 transition-colors">Se connecter</button>
+</form>
+</div>
+</div>
+<!-- Register Modal -->
+<div id="registerModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50">
+<div class="bg-black border border-primary/30 rounded-lg p-8 w-full max-w-md">
+<div class="flex justify-between items-center mb-6">
+<h2 class="text-2xl font-bold text-white">Créer un compte</h2>
+<button id="switchToLogin" class="text-primary hover:text-primary/80">Se connecter</button>
+</div>
+<form id="registerForm" class="space-y-4">
+<div>
+<label class="block text-sm font-medium text-gray-300 mb-1">Nom complet</label>
+<input type="text" name="fullName" required class="w-full bg-secondary rounded-lg px-4 py-2 text-white border-none focus:ring-2 focus:ring-primary">
+</div>
+<div>
+<label class="block text-sm font-medium text-gray-300 mb-1">Email</label>
+<input type="email" name="email" required class="w-full bg-secondary rounded-lg px-4 py-2 text-white border-none focus:ring-2 focus:ring-primary">
+</div>
+<div>
+<label class="block text-sm font-medium text-gray-300 mb-1">Mot de passe</label>
+<input type="password" name="password" required class="w-full bg-secondary rounded-lg px-4 py-2 text-white border-none focus:ring-2 focus:ring-primary">
+</div>
+<div>
+<label class="block text-sm font-medium text-gray-300 mb-1">Confirmer le mot de passe</label>
+<input type="password" name="confirmPassword" required class="w-full bg-secondary rounded-lg px-4 py-2 text-white border-none focus:ring-2 focus:ring-primary">
+</div>
+<button type="submit" class="w-full bg-primary text-black py-2 rounded-button font-medium hover:bg-primary/90 transition-colors">Créer un compte</button>
+</form>
+</div>
+</div>
+<!-- Notification Toast -->
+<div id="notificationToast" class="fixed top-4 right-4 z-50 hidden">
+<div class="bg-black border border-primary text-white px-6 py-3 rounded-lg shadow-lg">
+<p id="notificationMessage"></p>
+</div>
+</div>
+<!-- Main Content (initially hidden) -->
+<div id="mainContent" class="hidden flex-1 flex flex-col">
+<header class="bg-black border-b border-primary/30 px-4 py-3 flex items-center justify-between">
+<div class="flex items-center">
+<div class="text-white text-2xl font-bold">
+Chat<span class="bg-primary px-1 text-black">hub</span>
+</div>
+<div class="text-white/60 text-sm ml-1 tracking-wider">community</div>
+</div>
+<nav class="hidden md:flex items-center space-x-6">
+<a href="#" class="text-white hover:text-primary transition-colors">
+<div class="w-8 h-8 flex items-center justify-center">
+<i class="ri-message-3-line ri-lg"></i>
+</div>
+</a>
+<a href="#" class="text-white hover:text-primary transition-colors">
+<div class="w-8 h-8 flex items-center justify-center">
+<i class="ri-group-line ri-lg"></i>
+</div>
+</a>
+<a href="#" class="text-white hover:text-primary transition-colors">
+<div class="w-8 h-8 flex items-center justify-center">
+<i class="ri-notification-3-line ri-lg"></i>
+</div>
+</a>
+<a href="#" class="text-white hover:text-primary transition-colors">
+<div class="w-8 h-8 flex items-center justify-center">
+<i class="ri-settings-3-line ri-lg"></i>
+</div>
+</a>
+<div class="relative">
+<button class="profile-button flex items-center space-x-2">
+<div class="w-8 h-8 rounded-full bg-gray-700 overflow-hidden border border-primary">
+<img src="https://readdy.ai/api/search-image?query=professional%20portrait%20photo%20of%20a%20person%20with%20neutral%20expression%2C%20high%20quality%2C%20detailed%2C%20studio%20lighting&width=100&height=100&seq=avatar1&orientation=squarish" alt="Photo de profil" class="w-full h-full object-cover">
+</div>
+</button>
+<!-- Profile Dropdown -->
+<div id="profileDropdown" class="hidden absolute right-0 top-full mt-2 w-48 bg-black border border-primary/30 rounded-lg shadow-lg overflow-hidden z-50">
+<div class="p-4 border-b border-primary/30">
+<div class="flex items-center space-x-3">
+<div class="w-10 h-10 rounded-full bg-gray-700 overflow-hidden">
+<img id="profileDropdownAvatar" src="" alt="Profile" class="w-full h-full object-cover">
+</div>
+<div>
+<div id="profileDropdownName" class="font-semibold"></div>
+<div id="profileDropdownEmail" class="text-sm text-gray-400"></div>
+</div>
+</div>
+</div>
+<div class="py-1">
+<button id="settingsButton" class="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center space-x-2">
+<i class="ri-settings-3-line"></i>
+<span>Paramètres</span>
+</button>
+<button id="logoutButton" class="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center space-x-2">
+<i class="ri-logout-box-line"></i>
+<span>Déconnexion</span>
+</button>
+</div>
+</div>
+</div>
+</nav>
+<button class="md:hidden text-white">
+<div class="w-8 h-8 flex items-center justify-center">
+<i class="ri-menu-line ri-lg"></i>
+</div>
+</button>
+</header>
+<!-- Main Content -->
+<main class="flex-1 flex overflow-hidden">
+<!-- Contacts/Conversations List -->
+<aside class="w-full md:w-80 lg:w-96 border-r border-primary/30 flex flex-col bg-black">
+<!-- Search bar -->
+<div class="p-4 border-b border-primary/30">
+<div class="relative">
+<input type="text" placeholder="Rechercher..." class="w-full bg-secondary rounded-lg py-2 pl-10 pr-4 text-white border-none">
+<div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60">
+<i class="ri-search-line"></i>
+</div>
+</div>
+</div>
+<!-- Contacts List -->
+<div class="flex-1 overflow-y-auto scrollbar-hide">
+<!-- Contact Item -->
+<div class="contact-hover border-b border-primary/20 p-4 cursor-pointer">
+<div class="flex items-center">
+<div class="relative">
+<div class="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
+<img src="https://readdy.ai/api/search-image?query=professional%20portrait%20photo%20of%20a%20person%20with%20neutral%20expression%2C%20high%20quality%2C%20detailed%2C%20studio%20lighting&width=100&height=100&seq=avatar2&orientation=squarish" alt="Contact" class="w-full h-full object-cover">
+</div>
+<div class="status-dot status-online absolute bottom-0 right-0 border-2 border-black"></div>
+</div>
+<div class="ml-3 flex-1">
+<div class="flex justify-between items-center">
+<h3 class="font-semibold">Sophie Martin</h3>
+<span class="text-xs text-gray-400">14:22</span>
+</div>
+<p class="text-sm text-gray-400 truncate">Bonjour, comment vas-tu aujourd'hui?</p>
+</div>
+</div>
+</div>
+<div class="contact-hover border-b border-primary/20 p-4 cursor-pointer bg-primary/10">
+<div class="flex items-center">
+<div class="relative">
+<div class="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
+<img src="https://readdy.ai/api/search-image?query=professional%20portrait%20photo%20of%20a%20person%20with%20neutral%20expression%2C%20high%20quality%2C%20detailed%2C%20studio%20lighting&width=100&height=100&seq=avatar3&orientation=squarish" alt="Contact" class="w-full h-full object-cover">
+</div>
+<div class="status-dot status-online absolute bottom-0 right-0 border-2 border-black"></div>
+</div>
+<div class="ml-3 flex-1">
+<div class="flex justify-between items-center">
+<h3 class="font-semibold">Thomas Dubois</h3>
+<span class="text-xs text-gray-400">13:45</span>
+</div>
+<p class="text-sm text-primary truncate">Tu as vu le nouveau projet? J'ai besoin de ton avis.</p>
+</div>
+</div>
+</div>
+<div class="contact-hover border-b border-primary/20 p-4 cursor-pointer">
+<div class="flex items-center">
+<div class="relative">
+<div class="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
+<img src="https://readdy.ai/api/search-image?query=professional%20portrait%20photo%20of%20a%20person%20with%20neutral%20expression%2C%20high%20quality%2C%20detailed%2C%20studio%20lighting&width=100&height=100&seq=avatar4&orientation=squarish" alt="Contact" class="w-full h-full object-cover">
+</div>
+<div class="status-dot status-offline absolute bottom-0 right-0 border-2 border-black"></div>
+</div>
+<div class="ml-3 flex-1">
+<div class="flex justify-between items-center">
+<h3 class="font-semibold">Camille Bernard</h3>
+<span class="text-xs text-gray-400">Hier</span>
+</div>
+<p class="text-sm text-gray-400 truncate">Merci pour l'invitation au dîner!</p>
+</div>
+</div>
+</div>
+<div class="contact-hover border-b border-primary/20 p-4 cursor-pointer">
+<div class="flex items-center">
+<div class="relative">
+<div class="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
+<img src="https://readdy.ai/api/search-image?query=professional%20portrait%20photo%20of%20a%20person%20with%20neutral%20expression%2C%20high%20quality%2C%20detailed%2C%20studio%20lighting&width=100&height=100&seq=avatar5&orientation=squarish" alt="Contact" class="w-full h-full object-cover">
+</div>
+<div class="status-dot status-online absolute bottom-0 right-0 border-2 border-black"></div>
+</div>
+<div class="ml-3 flex-1">
+<div class="flex justify-between items-center">
+<h3 class="font-semibold">Groupe Projet</h3>
+<span class="text-xs text-gray-400">10:15</span>
+</div>
+<p class="text-sm text-gray-400 truncate">Antoine: On se retrouve à 15h pour la réunion</p>
+</div>
+</div>
+</div>
+<div class="contact-hover border-b border-primary/20 p-4 cursor-pointer">
+<div class="flex items-center">
+<div class="relative">
+<div class="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
+<img src="https://readdy.ai/api/search-image?query=professional%20portrait%20photo%20of%20a%20person%20with%20neutral%20expression%2C%20high%20quality%2C%20detailed%2C%20studio%20lighting&width=100&height=100&seq=avatar6&orientation=squarish" alt="Contact" class="w-full h-full object-cover">
+</div>
+<div class="status-dot status-offline absolute bottom-0 right-0 border-2 border-black"></div>
+</div>
+<div class="ml-3 flex-1">
+<div class="flex justify-between items-center">
+<h3 class="font-semibold">Lucie Moreau</h3>
+<span class="text-xs text-gray-400">Lun</span>
+</div>
+<p class="text-sm text-gray-400 truncate">N'oublie pas les documents pour demain!</p>
+</div>
+</div>
+</div>
+<div class="contact-hover border-b border-primary/20 p-4 cursor-pointer">
+<div class="flex items-center">
+<div class="relative">
+<div class="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
+<img src="https://readdy.ai/api/search-image?query=professional%20portrait%20photo%20of%20a%20person%20with%20neutral%20expression%2C%20high%20quality%2C%20detailed%2C%20studio%20lighting&width=100&height=100&seq=avatar7&orientation=squarish" alt="Contact" class="w-full h-full object-cover">
+</div>
+<div class="status-dot status-offline absolute bottom-0 right-0 border-2 border-black"></div>
+</div>
+<div class="ml-3 flex-1">
+<div class="flex justify-between items-center">
+<h3 class="font-semibold">Julien Petit</h3>
+<span class="text-xs text-gray-400">Dim</span>
+</div>
+<p class="text-sm text-gray-400 truncate">On se voit samedi pour le match?</p>
+</div>
+</div>
+</div>
+</div>
+<!-- New Message Button -->
+<div class="p-4 border-t border-primary/30">
+<button class="w-full bg-primary text-black py-2 rounded-button font-medium flex items-center justify-center space-x-2 hover:bg-primary/90 transition-colors whitespace-nowrap">
+<i class="ri-edit-line"></i>
+<span>Nouveau message</span>
+</button>
+</div>
+</aside>
+<!-- Chat Area -->
+<section class="hidden md:flex flex-col flex-1 bg-black/95">
+<!-- Chat Header -->
+<div class="border-b border-primary/30 p-4 flex items-center justify-between">
+<div class="flex items-center">
+<div class="relative">
+<div class="w-10 h-10 rounded-full bg-gray-700 overflow-hidden">
+<img src="https://readdy.ai/api/search-image?query=professional%20portrait%20photo%20of%20a%20person%20with%20neutral%20expression%2C%20high%20quality%2C%20detailed%2C%20studio%20lighting&width=100&height=100&seq=avatar3&orientation=squarish" alt="Contact" class="w-full h-full object-cover">
+</div>
+<div class="status-dot status-online absolute bottom-0 right-0 border-2 border-black"></div>
+</div>
+<div class="ml-3">
+<h2 class="font-semibold">Thomas Dubois</h2>
+<p class="text-xs text-gray-400">En ligne</p>
+</div>
+</div>
+<div class="flex space-x-3">
+<button class="text-white hover:text-primary transition-colors">
+<div class="w-8 h-8 flex items-center justify-center">
+<i class="ri-phone-line"></i>
+</div>
+</button>
+<button class="text-white hover:text-primary transition-colors">
+<div class="w-8 h-8 flex items-center justify-center">
+<i class="ri-vidicon-line"></i>
+</div>
+</button>
+<button class="text-white hover:text-primary transition-colors">
+<div class="w-8 h-8 flex items-center justify-center">
+<i class="ri-information-line"></i>
+</div>
+</button>
+</div>
+</div>
+<!-- Chat Messages -->
+<div class="flex-1 p-4 overflow-y-auto scrollbar-hide space-y-4">
+<!-- Date Separator -->
+<div class="flex justify-center">
+<span class="text-xs bg-secondary/50 text-gray-400 px-3 py-1 rounded-full">Aujourd'hui</span>
+</div>
+<!-- Received Message -->
+<div class="flex items-end space-x-2 max-w-[80%]">
+<div class="w-8 h-8 rounded-full bg-gray-700 overflow-hidden">
+<img src="https://readdy.ai/api/search-image?query=professional%20portrait%20photo%20of%20a%20person%20with%20neutral%20expression%2C%20high%20quality%2C%20detailed%2C%20studio%20lighting&width=100&height=100&seq=avatar3&orientation=squarish" alt="Contact" class="w-full h-full object-cover">
+</div>
+<div class="message-received p-3">
+<p>Salut! Tu as vu le nouveau projet sur lequel on travaille?</p>
+</div>
+<span class="text-xs text-gray-500">10:15</span>
+</div>
+<div class="flex items-end space-x-2 max-w-[80%]">
+<div class="w-8 h-8 rounded-full bg-gray-700 overflow-hidden">
+<img src="https://readdy.ai/api/search-image?query=professional%20portrait%20photo%20of%20a%20person%20with%20neutral%20expression%2C%20high%20quality%2C%20detailed%2C%20studio%20lighting&width=100&height=100&seq=avatar3&orientation=squarish" alt="Contact" class="w-full h-full object-cover">
+</div>
+<div class="message-received p-3">
+<p>J'ai besoin de ton avis sur quelques fonctionnalités.</p>
+</div>
+<span class="text-xs text-gray-500">10:16</span>
+</div>
+<!-- Sent Message -->
+<div class="flex items-end justify-end space-x-2 ml-auto max-w-[80%]">
+<span class="text-xs text-gray-500">10:20</span>
+<div class="message-sent p-3">
+<p>Bonjour! Oui, j'ai jeté un coup d'œil ce matin.</p>
+</div>
+</div>
+<div class="flex items-end justify-end space-x-2 ml-auto max-w-[80%]">
+<span class="text-xs text-gray-500">10:21</span>
+<div class="message-sent p-3">
+<p>Je pense que c'est très prometteur! Quelles fonctionnalités veux-tu discuter?</p>
+</div>
+</div>
+<!-- Received Message -->
+<div class="flex items-end space-x-2 max-w-[80%]">
+<div class="w-8 h-8 rounded-full bg-gray-700 overflow-hidden">
+<img src="https://readdy.ai/api/search-image?query=professional%20portrait%20photo%20of%20a%20person%20with%20neutral%20expression%2C%20high%20quality%2C%20detailed%2C%20studio%20lighting&width=100&height=100&seq=avatar3&orientation=squarish" alt="Contact" class="w-full h-full object-cover">
+</div>
+<div class="message-received p-3">
+<p>Super! Je pensais notamment à l'interface utilisateur. Tu crois qu'on devrait opter pour un design plus minimaliste?</p>
+</div>
+<span class="text-xs text-gray-500">10:25</span>
+</div>
+<!-- Sent Message -->
+<div class="flex items-end justify-end space-x-2 ml-auto max-w-[80%]">
+<span class="text-xs text-gray-500">10:28</span>
+<div class="message-sent p-3">
+<p>Absolument, je pense que le minimalisme fonctionne mieux pour ce type d'application. Ça améliore l'expérience utilisateur et rend l'interface plus intuitive.</p>
+</div>
+</div>
+<div class="flex items-end justify-end space-x-2 ml-auto max-w-[80%]">
+<span class="text-xs text-gray-500">10:29</span>
+<div class="message-sent p-3">
+<p>On pourrait se concentrer sur les fonctionnalités essentielles et éliminer tout ce qui est superflu.</p>
+</div>
+</div>
+<!-- Received Message -->
+<div class="flex items-end space-x-2 max-w-[80%]">
+<div class="w-8 h-8 rounded-full bg-gray-700 overflow-hidden">
+<img src="https://readdy.ai/api/search-image?query=professional%20portrait%20photo%20of%20a%20person%20with%20neutral%20expression%2C%20high%20quality%2C%20detailed%2C%20studio%20lighting&width=100&height=100&seq=avatar3&orientation=squarish" alt="Contact" class="w-full h-full object-cover">
+</div>
+<div class="message-received p-3">
+<p>Tu as raison. Est-ce qu'on peut se voir demain pour en discuter plus en détail? Peut-être vers 14h?</p>
+</div>
+<span class="text-xs text-gray-500">10:35</span>
+</div>
+<!-- Typing indicator -->
+<div class="flex items-end space-x-2 max-w-[80%]">
+<div class="w-8 h-8 rounded-full bg-gray-700 overflow-hidden">
+<img src="https://readdy.ai/api/search-image?query=professional%20portrait%20photo%20of%20a%20person%20with%20neutral%20expression%2C%20high%20quality%2C%20detailed%2C%20studio%20lighting&width=100&height=100&seq=avatar3&orientation=squarish" alt="Contact" class="w-full h-full object-cover">
+</div>
+<div class="bg-secondary/30 p-3 rounded-xl">
+<div class="flex space-x-1">
+<div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+<div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-75"></div>
+<div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-150"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Chat Input -->
+<div class="border-t border-primary/30 p-4">
+<div class="flex items-center space-x-2">
+<button class="text-white hover:text-primary transition-colors">
+<div class="w-10 h-10 flex items-center justify-center">
+<i class="ri-emotion-line ri-lg"></i>
+</div>
+</button>
+<button class="text-white hover:text-primary transition-colors">
+<div class="w-10 h-10 flex items-center justify-center">
+<i class="ri-attachment-2 ri-lg"></i>
+</div>
+</button>
+<div class="flex-1 bg-secondary rounded-lg overflow-hidden flex items-center">
+<input type="text" placeholder="Écrivez votre message..." class="chat-input w-full bg-transparent px-4 py-3 text-white border-none">
+</div>
+<button class="bg-primary text-black p-2 rounded-full hover:bg-primary/90 transition-colors">
+<div class="w-8 h-8 flex items-center justify-center">
+<i class="ri-send-plane-fill ri-lg"></i>
+</div>
+</button>
+</div>
+</div>
+</section>
+<!-- Empty State for Mobile -->
+<div class="md:hidden flex-1 flex flex-col items-center justify-center p-6 text-center">
+<div class="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+<i class="ri-message-3-line ri-3x text-primary"></i>
+</div>
+<h2 class="text-xl font-semibold mb-2">Sélectionnez une conversation</h2>
+<p class="text-gray-400 mb-6">Choisissez un contact dans la liste pour commencer à discuter</p>
+<button class="bg-primary text-black py-2 px-6 rounded-button font-medium hover:bg-primary/90 transition-colors whitespace-nowrap !rounded-button">
+Nouveau message
+</button>
+</div>
+</main>
+<script id="contactSelection">
+document.addEventListener('DOMContentLoaded', function() {
+const contactItems = document.querySelectorAll('.contact-hover');
+const chatSection = document.querySelector('section');
+const emptyState = document.querySelector('.md\\:hidden');
+contactItems.forEach(item => {
+item.addEventListener('click', function() {
+// Remove highlight from all contacts
+contactItems.forEach(contact => {
+contact.classList.remove('bg-primary/10');
+});
+// Highlight selected contact
+this.classList.add('bg-primary/10');
+// Show chat on mobile
+if (window.innerWidth < 768) {
+chatSection.classList.remove('hidden');
+chatSection.classList.add('flex');
+emptyState.classList.add('hidden');
+}
+});
+});
+});
+</script>
+<script id="chatInput">
+document.addEventListener('DOMContentLoaded', function() {
+const chatInput = document.querySelector('.chat-input');
+const sendButton = chatInput?.nextElementSibling;
+const emojiButton = document.querySelector('.ri-emotion-line').parentElement;
+const attachmentButton = document.querySelector('.ri-attachment-2').parentElement;
+let isEmojiPickerVisible = false;
+const emojis = ['😊', '😂', '🥰', '😍', '😎', '🤔', '👍', '❤️', '🎉', '🌟'];
+// Create emoji picker
+const emojiPicker = document.createElement('div');
+emojiPicker.className = 'hidden absolute bottom-full left-0 mb-2 p-2 bg-black border border-primary/30 rounded-lg grid grid-cols-5 gap-1';
+emojiPicker.style.zIndex = '1000';
+emojis.forEach(emoji => {
+const button = document.createElement('button');
+button.className = 'w-8 h-8 hover:bg-primary/10 rounded flex items-center justify-center text-xl';
+button.textContent = emoji;
+button.onclick = () => {
+chatInput.value += emoji;
+chatInput.focus();
+};
+emojiPicker.appendChild(button);
+});
+emojiButton.parentElement.appendChild(emojiPicker);
+// Toggle emoji picker
+emojiButton.addEventListener('click', () => {
+isEmojiPickerVisible = !isEmojiPickerVisible;
+emojiPicker.classList.toggle('hidden', !isEmojiPickerVisible);
+});
+// Close emoji picker when clicking outside
+document.addEventListener('click', (e) => {
+if (!emojiButton.contains(e.target) && !emojiPicker.contains(e.target)) {
+isEmojiPickerVisible = false;
+emojiPicker.classList.add('hidden');
+}
+});
+// Handle file attachment
+const fileInput = document.createElement('input');
+fileInput.type = 'file';
+fileInput.accept = 'image/*';
+fileInput.style.display = 'none';
+document.body.appendChild(fileInput);
+attachmentButton.addEventListener('click', () => {
+fileInput.click();
+});
+fileInput.addEventListener('change', () => {
+const file = fileInput.files[0];
+if (file) {
+const reader = new FileReader();
+reader.onload = (e) => {
+sendMessage('', e.target.result);
+};
+reader.readAsDataURL(file);
+}
+});
+if (chatInput && sendButton) {
+chatInput.addEventListener('keypress', function(e) {
+if (e.key === 'Enter' && !e.shiftKey && chatInput.value.trim() !== '') {
+e.preventDefault();
+sendMessage(chatInput.value.trim());
+}
+});
+sendButton.addEventListener('click', function() {
+if (chatInput.value.trim() !== '') {
+sendMessage(chatInput.value.trim());
+}
+});
+function sendMessage(text, imageUrl = null) {
+const messagesContainer = document.querySelector('.scrollbar-hide.space-y-4');
+const currentTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+let messageContent = '';
+if (text) {
+messageContent = `<p>${text}</p>`;
+}
+if (imageUrl) {
+messageContent += `<img src="${imageUrl}" alt="Attached image" class="max-w-xs rounded-lg mt-2">`;
+}
+const messageHTML = `
+<div class="flex items-end justify-end space-x-2 ml-auto max-w-[80%]">
+<span class="text-xs text-gray-500">${currentTime}</span>
+<div class="message-sent p-3">
+${messageContent}
+</div>
+</div>
+`;
+messagesContainer.insertAdjacentHTML('beforeend', messageHTML);
+chatInput.value = '';
+messagesContainer.scrollTop = messagesContainer.scrollHeight;
+// Simulate response after 1-3 seconds
+if (text) {
+const typingIndicator = document.querySelector('.animate-pulse').parentElement.parentElement.parentElement;
+typingIndicator.classList.remove('hidden');
+setTimeout(() => {
+typingIndicator.classList.add('hidden');
+const responses = [
+"D'accord, je comprends !",
+"Merci pour l'information !",
+"Intéressant, continuons la discussion.",
+"Je vois ce que tu veux dire.",
+"Excellent point de vue !"
+];
+const response = responses[Math.floor(Math.random() * responses.length)];
+const responseHTML = `
+<div class="flex items-end space-x-2 max-w-[80%]">
+<div class="w-8 h-8 rounded-full bg-gray-700 overflow-hidden">
+<img src="https://readdy.ai/api/search-image?query=professional%20portrait%20photo%20of%20a%20person%20with%20neutral%20expression%2C%20high%20quality%2C%20detailed%2C%20studio%20lighting&width=100&height=100&seq=avatar3&orientation=squarish" alt="Contact" class="w-full h-full object-cover">
+</div>
+<div class="message-received p-3">
+<p>${response}</p>
+</div>
+<span class="text-xs text-gray-500">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+</div>
+`;
+messagesContainer.insertAdjacentHTML('beforeend', responseHTML);
+messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}, 1000 + Math.random() * 2000);
+}
+}
+}
+});
+</script>
+<script id="responsiveLayout">
+document.addEventListener('DOMContentLoaded', function() {
+const handleResize = () => {
+const chatSection = document.querySelector('section');
+const emptyState = document.querySelector('.md\\:hidden');
+const aside = document.querySelector('aside');
+if (!chatSection || !emptyState || !aside) return;
+if (window.innerWidth >= 768) {
+chatSection.classList.remove('hidden');
+chatSection.classList.add('flex');
+emptyState.classList.add('hidden');
+aside.classList.remove('hidden');
+} else {
+chatSection.classList.add('hidden');
+chatSection.classList.remove('flex');
+emptyState.classList.remove('hidden');
+aside.classList.remove('hidden');
+}
+};
+// Profile dropdown functionality
+const profileButton = document.querySelector('.profile-button');
+const profileDropdown = document.getElementById('profileDropdown');
+const settingsButton = document.getElementById('settingsButton');
+const logoutButton = document.getElementById('logoutButton');
+if (profileButton && profileDropdown && settingsButton && logoutButton) {
+profileButton.addEventListener('click', (e) => {
+e.stopPropagation();
+profileDropdown.classList.toggle('hidden');
+if (!profileDropdown.classList.contains('hidden')) {
+updateProfileDropdown();
+}
+});
+document.addEventListener('click', (e) => {
+if (profileButton && profileDropdown && !profileButton.contains(e.target) && !profileDropdown.contains(e.target)) {
+profileDropdown.classList.add('hidden');
+}
+});
+function updateProfileDropdown() {
+const user = window.chatApp?.currentUser;
+if (user) {
+const avatar = document.getElementById('profileDropdownAvatar');
+const name = document.getElementById('profileDropdownName');
+const email = document.getElementById('profileDropdownEmail');
+if (avatar) avatar.src = user.avatar;
+if (name) name.textContent = user.name;
+if (email) email.textContent = user.email;
+}
+}
+if (settingsButton) {
+settingsButton.addEventListener('click', () => {
+if (profileDropdown) profileDropdown.classList.add('hidden');
+showSettingsModal();
+});
+}
+if (logoutButton) {
+logoutButton.addEventListener('click', () => {
+if (profileDropdown) profileDropdown.classList.add('hidden');
+if (window.chatApp?.logout) window.chatApp.logout();
+});
+}
+function showSettingsModal() {
+if (!window.chatApp?.currentUser) return;
+const modal = document.createElement('div');
+modal.className = 'fixed inset-0 bg-black/80 flex items-center justify-center z-50';
+modal.innerHTML = `
+<div class="bg-black border border-primary/30 rounded-lg p-8 w-full max-w-md">
+<div class="flex justify-between items-center mb-6">
+<h2 class="text-2xl font-bold text-white">Paramètres du compte</h2>
+<button class="text-gray-400 hover:text-white">
+<i class="ri-close-line ri-lg"></i>
+</button>
+</div>
+<form id="settingsForm" class="space-y-4">
+<div>
+<label class="block text-sm font-medium text-gray-300 mb-1">Nom complet</label>
+<input type="text" name="fullName" value="${window.chatApp.currentUser?.name || ''}" class="w-full bg-secondary rounded-lg px-4 py-2 text-white border-none focus:ring-2 focus:ring-primary">
+</div>
+<div>
+<label class="block text-sm font-medium text-gray-300 mb-1">Email</label>
+<input type="email" name="email" value="${window.chatApp.currentUser?.email || ''}" class="w-full bg-secondary rounded-lg px-4 py-2 text-white border-none focus:ring-2 focus:ring-primary">
+</div>
+<div>
+<label class="block text-sm font-medium text-gray-300 mb-1">Nouveau mot de passe</label>
+<input type="password" name="newPassword" placeholder="Laisser vide pour ne pas changer" class="w-full bg-secondary rounded-lg px-4 py-2 text-white border-none focus:ring-2 focus:ring-primary">
+</div>
+<button type="submit" class="w-full bg-primary text-black py-2 rounded-button font-medium hover:bg-primary/90 transition-colors">Enregistrer les modifications</button>
+</form>
+</div>
+`;
+document.body.appendChild(modal);
+const closeButton = modal.querySelector('button');
+closeButton.addEventListener('click', () => {
+modal.remove();
+});
+const settingsForm = modal.querySelector('#settingsForm');
+settingsForm.addEventListener('submit', (e) => {
+e.preventDefault();
+const formData = new FormData(settingsForm);
+window.chatApp.currentUser.name = formData.get('fullName');
+window.chatApp.currentUser.email = formData.get('email');
+window.chatApp.updateUserInterface();
+window.chatApp.showNotification('Paramètres enregistrés avec succès');
+modal.remove();
+});
+}
+window.addEventListener('resize', handleResize);
+handleResize();
+}
+});
+</script>
+</div>
+<script id="authentication">
+document.addEventListener('DOMContentLoaded', function() {
+const loginModal = document.getElementById('loginModal');
+const registerModal = document.getElementById('registerModal');
+const mainContent = document.getElementById('mainContent');
+const switchToRegister = document.getElementById('switchToRegister');
+const switchToLogin = document.getElementById('switchToLogin');
+const loginForm = document.getElementById('loginForm');
+const registerForm = document.getElementById('registerForm');
+const notificationToast = document.getElementById('notificationToast');
+const notificationMessage = document.getElementById('notificationMessage');
+const profileButton = document.querySelector('.profile-button');
+let currentUser = null;
+// Show notification
+function showNotification(message, duration = 3000) {
+notificationMessage.textContent = message;
+notificationToast.classList.remove('hidden');
+notificationToast.classList.add('flex');
+setTimeout(() => {
+notificationToast.classList.remove('flex');
+notificationToast.classList.add('hidden');
+}, duration);
+}
+// Switch between login and register modals
+switchToRegister.addEventListener('click', () => {
+loginModal.style.display = 'none';
+registerModal.style.display = 'flex';
+});
+switchToLogin.addEventListener('click', () => {
+registerModal.style.display = 'none';
+loginModal.style.display = 'flex';
+});
+// Handle login
+loginForm.addEventListener('submit', (e) => {
+e.preventDefault();
+const email = loginForm.email.value;
+const password = loginForm.password.value;
+if (email && password) {
+currentUser = {
+email: email,
+name: email.split('@')[0],
+avatar: `https://readdy.ai/api/search-image?query=professional%20portrait%20photo%20of%20a%20person%20with%20neutral%20expression%2C%20high%20quality%2C%20detailed%2C%20studio%20lighting&width=100&height=100&seq=avatar${Math.floor(Math.random() * 10)}&orientation=squarish`
+};
+loginModal.style.display = 'none';
+mainContent.classList.remove('hidden');
+showNotification('Connexion réussie!');
+updateUserInterface();
+}
+});
+// Handle registration
+registerForm.addEventListener('submit', (e) => {
+e.preventDefault();
+const fullName = registerForm.fullName.value;
+const email = registerForm.email.value;
+const password = registerForm.password.value;
+const confirmPassword = registerForm.confirmPassword.value;
+if (password !== confirmPassword) {
+showNotification('Les mots de passe ne correspondent pas');
+return;
+}
+if (fullName && email && password) {
+currentUser = {
+email: email,
+name: fullName,
+avatar: `https://readdy.ai/api/search-image?query=professional%20portrait%20photo%20of%20a%20person%20with%20neutral%20expression%2C%20high%20quality%2C%20detailed%2C%20studio%20lighting&width=100&height=100&seq=avatar${Math.floor(Math.random() * 10)}&orientation=squarish`
+};
+registerModal.style.display = 'none';
+mainContent.classList.remove('hidden');
+showNotification('Inscription réussie!');
+updateUserInterface();
+}
+});
+// Update user interface with current user data
+function updateUserInterface() {
+const userAvatar = document.querySelector('.profile-button img');
+if (userAvatar && currentUser) {
+userAvatar.src = currentUser.avatar;
+}
+}
+// Handle logout
+function logout() {
+currentUser = null;
+mainContent.classList.add('hidden');
+loginModal.style.display = 'flex';
+showNotification('Déconnexion réussie');
+}
+// Export functions and data for other scripts
+window.chatApp = {
+currentUser,
+showNotification,
+logout,
+updateUserInterface
+};
+});
+</script>
+</body>
+</html>
